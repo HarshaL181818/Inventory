@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>JD Analyzer</title>
+  <style>
+    .jd-card {
+      border: 1px solid #ccc;
+      padding: 15px;
+      margin-bottom: 10px;
+      background-color: #f9f9f9;
+      border-radius: 5px;
+    }
+    .jd-card h3 {
+      margin: 0;
+    }
+    .jd-card p {
+      margin: 5px 0;
+    }
+    .jd-card ul {
+      padding-left: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Job Description Analyzer</h1>
+  
+  <!-- Job Description Input Form -->
+  <input type="text" id="jobTitle" placeholder="Enter job title" />
+  <br/>
+  <textarea id="jobDesc" placeholder="Paste job description here..."></textarea>
+  <br/>
+  <button onclick="submitJD()">Analyze</button>
+
+  <!-- Output Section -->
+  <pre id="output"></pre>
+
+  <!-- All Job Descriptions Section -->
+  <h2>All Job Descriptions</h2>
+  <div id="allJDs"></div>
+
+  <script>
+    // Function to handle JD submission
+    async function submitJD() {
+      const title = document.getElementById('jobTitle').value;
+      const description = document.getElementById('jobDesc').value;
+
+      try {
+        // Make the POST request to analyze the JD
+        const res = await fetch('http://127.0.0.1:3000/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: title,
+            description: description
+          })
+        });
+
+        // Handle the response
+        const data = await res.json();
+
+        if (data.error) {
+          document.getElementById('output').innerText = "❌ " + data.error;
+        } else {
+          const out = `
+🎓 Education: ${data.education.required_degree}, ${data.education.field}
+🛠 Skills:
+  Programming: ${data.skills.programming_languages.join(', ')}
+  Tools: ${data.skills.tools_and_technologies.join(', ')}
+  Soft Skills: ${data.skills.soft_skills.join(', ') || 'None'}
+📋 Responsibilities:\n  - ${data.responsibilities.join('\n  - ')}
+📅 Experience: ${data.experience.years} years in ${data.experience.preferred_domains.join(', ')}
+🆔 Job ID: ${data.job_id}
+          `;
+          document.getElementById('output').innerText = out;
+        }
+
+        // Fetch all stored job descriptions from the database
+        fetchAllJDs();
+
+      } catch (err) {
+        console.error("Error:", err);
+        document.getElementById('output').innerText = "❌ Something went wrong. Please try again!";
+      }
+    }
+
+    // Function to fetch all job descriptions from the backend
+    async function fetchAllJDs() {
+      try {
+        const res = await fetch('http://127.0.0.1:3000/api/get_all_jds');
+        const data = await res.json();
+
+        let jdHTML = '';
+        data.forEach(jd => {
+          jdHTML += `
+            <div class="jd-card">
+              <h3>${jd.title} (${jd.job_id})</h3>
+              <p><strong>Education:</strong> ${jd.education_degree}, ${jd.education_field}</p>
+              <p><strong>Skills:</strong> Programming: ${jd.programming_languages.join(', ')}</p>
+              <p><strong>Experience:</strong> ${jd.experience_years} years in ${jd.experience_domains.join(', ')}</p>
+              <p><strong>Responsibilities:</strong></p>
+              <ul>
+                ${jd.responsibilities.map(res => `<li>${res}</li>`).join('')}
+              </ul>
+            </div>
+            <hr />
+          `;
+        });
+
+        document.getElementById('allJDs').innerHTML = jdHTML;
+      } catch (err) {
+        console.error("Error fetching job descriptions:", err);
+        document.getElementById('allJDs').innerText = "❌ Could not fetch job descriptions.";
+      }
+    }
+
+    // Fetch all JDs when the page loads
+    window.onload = fetchAllJDs;
+  </script>
+</body>
+</html>
